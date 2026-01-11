@@ -4,6 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const db = require('./db');
+const bugRoutes = require('./routes/bugRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -11,23 +13,8 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(express.json());
 app.use(cors());
-
-// 1. Database Connection
-// We use process.env to grab secrets from your .env file
-const db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME
-});
-
-db.connect((err) => {
-    if (err) {
-        console.error('Error connecting to MySQL:', err);
-        return;
-    }
-    console.log('Connected to MySQL Database');
-});
+// This tells the server: "Any URL starting with /bugs goes to the bugRoutes file"
+app.use('/bugs', bugRoutes);
 
 // --- ROUTES ---
 
