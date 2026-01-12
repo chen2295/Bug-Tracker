@@ -2,7 +2,46 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// --- 1. GET TEAM MEMBERS (Workaround) ---
+// --- 1. GET STATS (New Route for the Cards) ---
+router.get('/stats', (req, res) => {
+    const { team_id, assignee_id } = req.query;
+    
+    // We build a dynamic query based on who is asking
+    let sql = `
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN priority = 'High' AND status != 'Resolved' THEN 1 ELSE 0 END) as critical,
+            SUM(CASE WHEN status = 'Resolved' THEN 1 ELSE 0 END) as resolved,
+            SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress
+        FROM bugs
+    `;
+
+    let params = [];
+    let conditions = [];
+
+    if (assignee_id) {
+        conditions.push('assignee_id = ?');
+        params.push(assignee_id);
+    } else if (team_id) {
+        conditions.push('team_id = ?');
+        params.push(team_id);
+    }
+
+    if (conditions.length > 0) {
+        sql += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    db.query(sql, params, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: "Database error" });
+        }
+        // results[0] contains the row with { total: 10, critical: 2, ... }
+        res.json(results[0]);
+    });
+});
+
+// --- 2. GET TEAM MEMBERS ---
 router.get('/team-members', (req, res) => {
     const team_id = req.query.team_id;
     if (!team_id) return res.json([]); 
@@ -14,7 +53,7 @@ router.get('/team-members', (req, res) => {
     });
 });
 
-// --- 2. GET BUGS (With Filters, Assignee Names, and LIMIT) ---
+// --- 3. GET BUGS (With Filters & Limits) ---
 router.get('/', (req, res) => {
     const { team_id, assignee_id, limit } = req.query;
 
@@ -26,7 +65,6 @@ router.get('/', (req, res) => {
     let params = [];
     let conditions = [];
 
-    // Filter Logic
     if (assignee_id) {
         conditions.push('b.assignee_id = ?');
         params.push(assignee_id);
@@ -41,7 +79,6 @@ router.get('/', (req, res) => {
 
     sql += ' ORDER BY b.created_at DESC';
 
-    // LIMIT LOGIC (For "Recent 10" Dashboard)
     if (limit) {
         sql += ' LIMIT ?';
         params.push(parseInt(limit));
@@ -56,7 +93,7 @@ router.get('/', (req, res) => {
     });
 });
 
-// --- 3. CREATE BUG ---
+// --- 4. CREATE BUG ---
 router.post('/', (req, res) => {
     const { title, description, priority, status, team_id = 1, assignee_id = null } = req.body;
 
@@ -65,7 +102,6 @@ router.post('/', (req, res) => {
     }
 
     const sql = "INSERT INTO bugs (team_id, assignee_id, title, description, priority, status) VALUES (?, ?, ?, ?, ?, ?)";
-    
     const finalAssignee = assignee_id === "" ? null : assignee_id;
 
     db.query(sql, [team_id, finalAssignee, title, description, priority, status], (err, result) => {
@@ -77,7 +113,7 @@ router.post('/', (req, res) => {
     });
 });
 
-// --- 4. UPDATE BUG ---
+// --- 5. UPDATE BUG ---
 router.put('/:id', (req, res) => {
     const { assignee_id, status, priority } = req.body;
     const bugId = req.params.id;
