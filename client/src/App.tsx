@@ -12,7 +12,9 @@ const App: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route
           path="/dashboard"
-          element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
+          // NEW (Open for development)
+          element={<Dashboard />}   
+          //element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
         />
         <Route
           path="*"

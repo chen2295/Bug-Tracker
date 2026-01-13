@@ -2,11 +2,22 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// --- 1. GET STATS (New Route for the Cards) ---
+// --- 1. GET TEAM MEMBERS ---
+router.get('/team-members', (req, res) => {
+    const team_id = req.query.team_id;
+    if (!team_id) return res.json([]); 
+
+    const sql = "SELECT id, username, email FROM users WHERE team_id = ?";
+    db.query(sql, [team_id], (err, data) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        res.json(data);
+    });
+});
+
+// --- 2. GET STATS ---
 router.get('/stats', (req, res) => {
     const { team_id, assignee_id } = req.query;
     
-    // We build a dynamic query based on who is asking
     let sql = `
         SELECT 
             COUNT(*) as total,
@@ -32,28 +43,12 @@ router.get('/stats', (req, res) => {
     }
 
     db.query(sql, params, (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: "Database error" });
-        }
-        // results[0] contains the row with { total: 10, critical: 2, ... }
+        if (err) return res.status(500).json({ error: "Database error" });
         res.json(results[0]);
     });
 });
 
-// --- 2. GET TEAM MEMBERS ---
-router.get('/team-members', (req, res) => {
-    const team_id = req.query.team_id;
-    if (!team_id) return res.json([]); 
-
-    const sql = "SELECT id, username, email FROM users WHERE team_id = ?";
-    db.query(sql, [team_id], (err, data) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        res.json(data);
-    });
-});
-
-// --- 3. GET BUGS (With Filters & Limits) ---
+// --- 3. GET BUGS ---
 router.get('/', (req, res) => {
     const { team_id, assignee_id, limit } = req.query;
 
@@ -115,24 +110,20 @@ router.post('/', (req, res) => {
 
 // --- 5. UPDATE BUG ---
 router.put('/:id', (req, res) => {
-    const { assignee_id, status, priority } = req.body;
+    const { assignee_id, status, priority, title, description } = req.body;
     const bugId = req.params.id;
 
     let fields = [];
     let values = [];
 
+    if (title !== undefined) { fields.push('title = ?'); values.push(title); }
+    if (description !== undefined) { fields.push('description = ?'); values.push(description); }
     if (assignee_id !== undefined) {
         fields.push('assignee_id = ?');
         values.push(assignee_id === "" || assignee_id === "null" ? null : assignee_id);
     }
-    if (status !== undefined) {
-        fields.push('status = ?');
-        values.push(status);
-    }
-    if (priority !== undefined) {
-        fields.push('priority = ?');
-        values.push(priority);
-    }
+    if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+    if (priority !== undefined) { fields.push('priority = ?'); values.push(priority); }
 
     if (fields.length === 0) return res.status(400).json({ error: "No fields to update" });
 
@@ -141,11 +132,19 @@ router.put('/:id', (req, res) => {
     const sql = `UPDATE bugs SET ${fields.join(', ')} WHERE id = ?`;
 
     db.query(sql, values, (err, result) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: "Failed to update bug" });
-        }
+        if (err) return res.status(500).json({ error: "Failed to update bug" });
         res.json({ message: "Bug updated successfully" });
+    });
+});
+
+// --- 6. DELETE BUG (NEW!) ---
+router.delete('/:id', (req, res) => {
+    const bugId = req.params.id;
+    const sql = "DELETE FROM bugs WHERE id = ?";
+    
+    db.query(sql, [bugId], (err, result) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        res.json({ message: "Bug deleted successfully" });
     });
 });
 
