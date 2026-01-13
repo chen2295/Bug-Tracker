@@ -2,7 +2,21 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// --- 1. GET TEAM MEMBERS ---
+// --- 1. GET TEAM DETAILS (NEW!) ---
+router.get('/teams/:id', (req, res) => {
+    const teamId = req.params.id;
+    const sql = "SELECT name, join_code FROM teams WHERE id = ?";
+    
+    db.query(sql, [teamId], (err, result) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        if (result.length === 0) return res.status(404).json({ error: "Team not found" });
+        
+        // Return the first result (since ID is unique)
+        res.json(result[0]);
+    });
+});
+
+// --- 2. GET TEAM MEMBERS ---
 router.get('/team-members', (req, res) => {
     const team_id = req.query.team_id;
     if (!team_id) return res.json([]); 
@@ -14,7 +28,7 @@ router.get('/team-members', (req, res) => {
     });
 });
 
-// --- 2. GET STATS ---
+// --- 3. GET STATS ---
 router.get('/stats', (req, res) => {
     const { team_id, assignee_id } = req.query;
     
@@ -48,9 +62,9 @@ router.get('/stats', (req, res) => {
     });
 });
 
-// --- 3. GET BUGS ---
+// --- 4. GET BUGS (With Sorting) ---
 router.get('/', (req, res) => {
-    const { team_id, assignee_id, limit } = req.query;
+    const { team_id, assignee_id, limit, sort } = req.query;
 
     let sql = `
         SELECT b.*, u.username as assignee_name 
@@ -72,7 +86,14 @@ router.get('/', (req, res) => {
         sql += ' WHERE ' + conditions.join(' AND ');
     }
 
-    sql += ' ORDER BY b.created_at DESC';
+    // Sorting Logic
+    switch (sort) {
+        case 'priority': sql += " ORDER BY FIELD(b.priority, 'High', 'Medium', 'Low')"; break;
+        case 'status': sql += " ORDER BY FIELD(b.status, 'Open', 'In Progress', 'Resolved')"; break;
+        case 'assignee': sql += " ORDER BY u.username IS NULL, u.username ASC"; break;
+        case 'oldest': sql += " ORDER BY b.created_at ASC"; break;
+        default: sql += " ORDER BY b.created_at DESC"; break;
+    }
 
     if (limit) {
         sql += ' LIMIT ?';
@@ -80,15 +101,12 @@ router.get('/', (req, res) => {
     }
 
     db.query(sql, params, (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: 'Database error' });
-        }
+        if (err) return res.status(500).json({ error: 'Database error' });
         res.json(results);
     });
 });
 
-// --- 4. CREATE BUG ---
+// --- 5. CREATE BUG ---
 router.post('/', (req, res) => {
     const { title, description, priority, status, team_id = 1, assignee_id = null } = req.body;
 
@@ -100,15 +118,12 @@ router.post('/', (req, res) => {
     const finalAssignee = assignee_id === "" ? null : assignee_id;
 
     db.query(sql, [team_id, finalAssignee, title, description, priority, status], (err, result) => {
-        if (err) {
-            console.error("Error saving bug:", err);
-            return res.status(500).json({ error: "Database error" });
-        }
+        if (err) return res.status(500).json({ error: "Database error" });
         res.json({ message: "Bug created successfully!", id: result.insertId });
     });
 });
 
-// --- 5. UPDATE BUG ---
+// --- 6. UPDATE BUG ---
 router.put('/:id', (req, res) => {
     const { assignee_id, status, priority, title, description } = req.body;
     const bugId = req.params.id;
@@ -126,7 +141,6 @@ router.put('/:id', (req, res) => {
     if (priority !== undefined) { fields.push('priority = ?'); values.push(priority); }
 
     if (fields.length === 0) return res.status(400).json({ error: "No fields to update" });
-
     values.push(bugId); 
 
     const sql = `UPDATE bugs SET ${fields.join(', ')} WHERE id = ?`;
@@ -137,31 +151,21 @@ router.put('/:id', (req, res) => {
     });
 });
 
-// --- 6. DELETE BUG ---
+// --- 7. DELETE BUG ---
 router.delete('/:id', (req, res) => {
     const bugId = req.params.id;
-    const sql = "DELETE FROM bugs WHERE id = ?";
-    
-    db.query(sql, [bugId], (err, result) => {
+    db.query("DELETE FROM bugs WHERE id = ?", [bugId], (err) => {
         if (err) return res.status(500).json({ error: "Database error" });
         res.json({ message: "Bug deleted successfully" });
     });
 });
 
-// --- 7. DELETE USER ACCOUNT (NEW!) ---
-// Note: We use this 'workaround' file to avoid touching server.js
+// --- 8. DELETE USER ACCOUNT ---
 router.delete('/users/:id', (req, res) => {
     const userId = req.params.id;
-
-    // Step 1: Unassign bugs from this user (Set assignee_id to NULL)
-    const unassignSql = "UPDATE bugs SET assignee_id = NULL WHERE assignee_id = ?";
-    
-    db.query(unassignSql, [userId], (err) => {
+    db.query("UPDATE bugs SET assignee_id = NULL WHERE assignee_id = ?", [userId], (err) => {
         if (err) return res.status(500).json({ error: "Failed to unassign bugs" });
-
-        // Step 2: Now it is safe to delete the user
-        const deleteSql = "DELETE FROM users WHERE id = ?";
-        db.query(deleteSql, [userId], (err) => {
+        db.query("DELETE FROM users WHERE id = ?", [userId], (err) => {
             if (err) return res.status(500).json({ error: "Failed to delete user" });
             res.json({ message: "User deleted successfully" });
         });

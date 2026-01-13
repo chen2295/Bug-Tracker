@@ -23,6 +23,12 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
+  
+  // --- NEW: TEAM INFO STATE ---
+  const [teamInfo, setTeamInfo] = useState({ name: "Loading...", join_code: "..." });
+
+  // --- SORT STATE ---
+  const [sortBy, setSortBy] = useState("newest");
 
   // --- DARK MODE STATE ---
   const [darkMode, setDarkMode] = useState(() => {
@@ -39,7 +45,7 @@ function Dashboard() {
     }
   }, [darkMode]);
 
-  // --- USER & TEAM SETUP ---
+  // --- USER SETUP ---
   const storedUser = localStorage.getItem("user");
   const currentUser = storedUser ? JSON.parse(storedUser) : { id: 1, team_id: 1, username: "DevUser", email: "dev@example.com" };
 
@@ -51,12 +57,15 @@ function Dashboard() {
   const [selectedBug, setSelectedBug] = useState<Bug | null>(null);
 
   // --- FETCH DATA ---
+  
+  // 1. Fetch Team Members
   useEffect(() => {
     axios.get(`http://localhost:3001/bugs/team-members?team_id=${currentUser.team_id}`)
          .then(res => setTeamMembers(res.data))
          .catch(err => console.error(err));
   }, [currentUser.team_id]);
 
+  // 2. Fetch Stats
   useEffect(() => {
     if (activeTab === 'settings') return;
 
@@ -66,11 +75,21 @@ function Dashboard() {
     axios.get(endpoint).then(res => setStats(res.data)).catch(console.error);
   }, [activeTab, currentUser.id, currentUser.team_id]);
 
+  // 3. NEW: Fetch Team Name & Join Code
+  useEffect(() => {
+      if (currentUser.team_id) {
+          axios.get(`http://localhost:3001/bugs/teams/${currentUser.team_id}`)
+               .then(res => setTeamInfo(res.data))
+               .catch(err => console.error("Error fetching team info:", err));
+      }
+  }, [currentUser.team_id]);
+
   // --- HELPERS ---
   const getBugEndpoint = () => {
-      if (activeTab === 'my_issues') return `/bugs?assignee_id=${currentUser.id}`;
-      if (activeTab === 'dashboard') return `/bugs?team_id=${currentUser.team_id}&limit=10`;
-      return `/bugs?team_id=${currentUser.team_id}`;
+      let base = `/bugs?team_id=${currentUser.team_id}`;
+      if (activeTab === 'my_issues') base = `/bugs?assignee_id=${currentUser.id}`;
+      if (activeTab === 'dashboard') base += '&limit=10';
+      return `${base}&sort=${sortBy}`;
   };
 
   const getPageTitle = () => {
@@ -129,8 +148,7 @@ function Dashboard() {
   };
 
   const handleDeleteAccount = async () => {
-      const confirmed = window.confirm("Are you sure you want to delete your account? This action cannot be undone.");
-      if (confirmed) {
+      if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
           try {
               await axios.delete(`http://localhost:3001/bugs/users/${currentUser.id}`);
               alert("Account deleted.");
@@ -150,7 +168,12 @@ function Dashboard() {
         <nav className="col-md-2 d-none d-md-block bg-body sidebar min-vh-100 border-end">
           <div className="p-4">
             <h4 className="fw-bold text-primary mb-5"><i className="bi bi-bug-fill me-2"></i>BugTracker</h4>
-            <div className="mb-3 text-secondary small">LOGGED IN AS: <br/> <strong>{currentUser.username}</strong> (Team {currentUser.team_id})</div>
+            <div className="mb-3 text-secondary small">
+                LOGGED IN AS: <br/> 
+                <strong>{currentUser.username}</strong>
+                {/* NEW: Display Team Name instead of ID */}
+                <div className="text-muted mt-1">{teamInfo.name}</div>
+            </div>
             <ul className="nav flex-column gap-2">
               <li className="nav-item">
                 <button className={`btn w-100 text-start border-0 fw-medium py-2 ${activeTab === 'dashboard' ? 'bg-primary-subtle text-primary' : 'text-secondary'}`} onClick={() => setActiveTab('dashboard')}>
@@ -183,73 +206,74 @@ function Dashboard() {
         <main className="col-md-10 ms-sm-auto p-4 md-p-5">
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div><h2 className="fw-bold">{getPageTitle()}</h2><p className="text-secondary">{getPageSubtitle()}</p></div>
+            
             {activeTab !== 'settings' && (
-                <button className="btn btn-primary px-4 py-2 rounded-3 shadow-sm" onClick={handleShow}><i className="bi bi-plus-lg me-2"></i> New Issue</button>
+                <div className="d-flex gap-2">
+                    <Form.Select 
+                        className="bg-body border-secondary-subtle" 
+                        style={{ width: 'auto', cursor: 'pointer' }}
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                    >
+                        <option value="newest">Sort: Newest</option>
+                        <option value="oldest">Sort: Oldest</option>
+                        <option value="priority">Sort: Priority (High First)</option>
+                        <option value="status">Sort: Status (Open First)</option>
+                        <option value="assignee">Sort: Assignee</option>
+                    </Form.Select>
+                    <button className="btn btn-primary px-4 py-2 rounded-3 shadow-sm" onClick={handleShow}>
+                        <i className="bi bi-plus-lg me-2"></i> New Issue
+                    </button>
+                </div>
             )}
           </div>
 
           {/* --- VIEW: SETTINGS TAB --- */}
           {activeTab === 'settings' ? (
               <div className="row g-4">
-                  {/* Profile Card - Uses 'bg-body' to be dark in dark mode */}
                   <div className="col-md-6">
                       <div className="card border-0 shadow-sm rounded-4 p-4 bg-body">
                           <h5 className="fw-bold mb-4">My Profile</h5>
                           <Form>
+                              <Form.Group className="mb-3"><Form.Label className="text-secondary small fw-bold">USERNAME</Form.Label><Form.Control type="text" value={currentUser.username} disabled /></Form.Group>
+                              <Form.Group className="mb-3"><Form.Label className="text-secondary small fw-bold">EMAIL ADDRESS</Form.Label><Form.Control type="email" value={currentUser.email || "user@example.com"} disabled /></Form.Group>
+                              
+                              {/* NEW: Show Join Code instead of Team ID */}
                               <Form.Group className="mb-3">
-                                  <Form.Label className="text-secondary small fw-bold">USERNAME</Form.Label>
-                                  {/* Removed bg-light to allow dark mode inheritance */}
-                                  <Form.Control type="text" value={currentUser.username} disabled />
-                              </Form.Group>
-                              <Form.Group className="mb-3">
-                                  <Form.Label className="text-secondary small fw-bold">EMAIL ADDRESS</Form.Label>
-                                  <Form.Control type="email" value={currentUser.email || "user@example.com"} disabled />
-                              </Form.Group>
-                              <Form.Group className="mb-3">
-                                  <Form.Label className="text-secondary small fw-bold">TEAM ID</Form.Label>
-                                  <Form.Control type="text" value={currentUser.team_id} disabled />
+                                  <Form.Label className="text-secondary small fw-bold">JOIN CODE</Form.Label>
+                                  <div className="input-group">
+                                    <Form.Control type="text" value={teamInfo.join_code} disabled className="fw-bold text-primary font-monospace" />
+                                    <button className="btn btn-outline-secondary" onClick={() => navigator.clipboard.writeText(teamInfo.join_code)}>
+                                        <i className="bi bi-clipboard"></i>
+                                    </button>
+                                  </div>
+                                  <small className="text-muted">Share this code to invite others to your team.</small>
                               </Form.Group>
                           </Form>
                       </div>
                   </div>
-
-                  {/* Preferences Card */}
                   <div className="col-md-6">
                       <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-body">
                           <h5 className="fw-bold mb-4">App Preferences</h5>
                           <div className="d-flex justify-content-between align-items-center mb-4">
-                              <div>
-                                  <h6 className="mb-0 fw-semibold">Email Notifications</h6>
-                                  <small className="text-secondary">Receive emails when bugs are assigned to you.</small>
-                              </div>
+                              <div><h6 className="mb-0 fw-semibold">Email Notifications</h6><small className="text-secondary">Receive emails when bugs are assigned to you.</small></div>
                               <Form.Check type="switch" defaultChecked />
                           </div>
                           <div className="d-flex justify-content-between align-items-center">
-                              <div>
-                                  <h6 className="mb-0 fw-semibold">Dark Mode</h6>
-                                  <small className="text-secondary">Switch between light and dark themes.</small>
-                              </div>
-                              <Form.Check 
-                                type="switch" 
-                                checked={darkMode}
-                                onChange={() => setDarkMode(!darkMode)}
-                              />
+                              <div><h6 className="mb-0 fw-semibold">Dark Mode</h6><small className="text-secondary">Switch between light and dark themes.</small></div>
+                              <Form.Check type="switch" checked={darkMode} onChange={() => setDarkMode(!darkMode)} />
                           </div>
                       </div>
-
                       <div className="card border-0 shadow-sm rounded-4 p-4 border-danger-subtle bg-body">
                           <h5 className="fw-bold mb-3 text-danger">Danger Zone</h5>
                           <p className="text-secondary small">Once you delete your account, there is no going back. All bugs assigned to you will be unassigned.</p>
-                          <Button variant="outline-danger" size="sm" onClick={handleDeleteAccount}>
-                              Delete Account
-                          </Button>
+                          <Button variant="outline-danger" size="sm" onClick={handleDeleteAccount}>Delete Account</Button>
                       </div>
                   </div>
               </div>
           ) : (
               // --- VIEW: DASHBOARD/LIST ---
               <>
-                {/* Stats Cards - Updated to use bg-body for Dark Mode support */}
                 {activeTab === 'dashboard' && (
                     <div className="row g-4 mb-5">
                         <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100 bg-body"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">Total Bugs</p><h1 className="fw-bold mb-0">{stats.total}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary" style={{ width: '60px', height: '60px' }}><i className="bi bi-bug fs-2"></i></div></div></div></div>
@@ -258,17 +282,11 @@ function Dashboard() {
                         <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100 bg-body"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">In Progress</p><h1 className="fw-bold mb-0">{stats.in_progress}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3" style={{ width: '60px', height: '60px', backgroundColor: '#f3e8ff', color: '#6f42c1' }}><i className="bi bi-clock fs-2"></i></div></div></div></div>
                     </div>
                 )}
-
-                <BugList 
-                    dataEndpoint={getBugEndpoint()} 
-                    teamMembers={teamMembers} 
-                    onBugClick={handleBugClick} 
-                />
+                <BugList dataEndpoint={getBugEndpoint()} teamMembers={teamMembers} onBugClick={handleBugClick} />
               </>
           )}
 
           {/* --- MODALS & SIDEBARS --- */}
-          
           <Modal show={showModal} onHide={handleClose} centered>
             <Modal.Header closeButton><Modal.Title>Create New Issue</Modal.Title></Modal.Header>
             <Modal.Body>
@@ -288,9 +306,7 @@ function Dashboard() {
           </Modal>
 
           <Offcanvas show={showSidebar} onHide={() => setShowSidebar(false)} placement="end" style={{ width: '500px' }}>
-            <Offcanvas.Header closeButton className="border-bottom">
-                <Offcanvas.Title className="fw-bold text-secondary">{selectedBug ? `BUG-${1000 + selectedBug.id}` : 'Details'}</Offcanvas.Title>
-            </Offcanvas.Header>
+            <Offcanvas.Header closeButton className="border-bottom"><Offcanvas.Title className="fw-bold text-secondary">{selectedBug ? `BUG-${1000 + selectedBug.id}` : 'Details'}</Offcanvas.Title></Offcanvas.Header>
             <Offcanvas.Body className="p-4">
                 {selectedBug && (
                     <Form>
