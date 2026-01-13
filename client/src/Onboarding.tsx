@@ -3,93 +3,75 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 function Onboarding() {
-  // State to toggle between "Create" and "Join" view
-  const [mode, setMode] = useState<"create" | "join">("create");
-
-  // Form Inputs
+  const [view, setView] = useState<"create" | "join">("create");
   const [teamName, setTeamName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
+  const [joinCode, setJoinCode] = useState(""); // <--- Variable matches DB name now
   const [error, setError] = useState("");
-
   const navigate = useNavigate();
 
-  // 1. Get the current logged-in user from LocalStorage
-  // We use 'any' here to avoid complex type errors for now
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
 
-  // Safety Check: If no user is logged in, send them back to login
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
-
-  // --- LOGIC: CREATE TEAM ---
-  const handleCreate = async () => {
-    if (!teamName) {
-      setError("Please enter a team name");
-      return;
-    }
-
-    // A. Frontend generates the random 6-character code
-    const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
+  // --- CREATE TEAM ---
+  const handleCreateTeam = async () => {
+    if (!teamName || !user) return;
     try {
-      // B. Send to Backend
-      await axios.post("http://localhost:3001/teams/create", {
-        name: teamName,
-        join_code: newCode,
-        user_id: user.id,
+      const res = await axios.post("http://localhost:3001/teams/create", {
+        team_name: teamName,
+        created_by: user.id,
       });
 
-      // C. Success!
-      alert(`Team Created! Your Invite Code is: ${newCode}`);
+      // Alert the user with the new JOIN CODE
+      alert(`Team Created! Your Invite Code is: ${res.data.join_code}`);
 
-      // D. Send to login so they can re-login and get their new team_id
-      navigate("/login");
+      completeOnboarding(res.data.team_id);
     } catch (err) {
-      console.error(err);
       setError("Failed to create team.");
     }
   };
 
-  // --- LOGIC: JOIN TEAM ---
-  const handleJoin = async () => {
-    if (!joinCode) {
-      setError("Please enter a code");
-      return;
-    }
-
+  // --- JOIN TEAM ---
+  const handleJoinTeam = async () => {
+    if (!joinCode || !user) return;
     try {
-      await axios.post("http://localhost:3001/teams/join", {
-        join_code: joinCode,
+      const res = await axios.post("http://localhost:3001/teams/join", {
+        join_code: joinCode, // <--- Sending 'join_code' to backend
         user_id: user.id,
       });
-
-      alert("Joined successfully!");
-      navigate("/login"); // Re-login to refresh data
-    } catch (err) {
-      setError("Invalid Code! Please ask your team for the correct code.");
+      completeOnboarding(res.data.team_id);
+    } catch (err: any) {
+      if (err.response && err.response.status === 404) {
+        setError("Invalid Join Code. Please check again.");
+      } else {
+        setError("Failed to join team.");
+      }
     }
+  };
+
+  const completeOnboarding = (teamId: number) => {
+    user.team_id = teamId;
+    localStorage.setItem("user", JSON.stringify(user));
+    navigate("/dashboard");
   };
 
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-      <div className="card p-5 shadow-lg" style={{ width: "500px" }}>
-        <h2 className="text-center mb-4">Welcome, {user.username}!</h2>
-        <p className="text-center text-muted mb-4">
-          You are not part of a team yet. Please choose an option below to get
-          started.
-        </p>
+      <div
+        className="card p-5 shadow-lg text-center"
+        style={{ width: "500px" }}
+      >
+        <h2>Welcome, {user ? user.username : "User"}!</h2>
+        <p className="text-muted">You are not part of a team yet.</p>
 
-        {/* Toggle Buttons */}
+        {error && <div className="alert alert-danger">{error}</div>}
+
         <div className="btn-group w-100 mb-4">
           <button
             className={`btn ${
-              mode === "create" ? "btn-primary" : "btn-outline-primary"
+              view === "create" ? "btn-primary" : "btn-outline-primary"
             }`}
             onClick={() => {
-              setMode("create");
+              setView("create");
               setError("");
             }}
           >
@@ -97,10 +79,10 @@ function Onboarding() {
           </button>
           <button
             className={`btn ${
-              mode === "join" ? "btn-primary" : "btn-outline-primary"
+              view === "join" ? "btn-primary" : "btn-outline-primary"
             }`}
             onClick={() => {
-              setMode("join");
+              setView("join");
               setError("");
             }}
           >
@@ -108,38 +90,39 @@ function Onboarding() {
           </button>
         </div>
 
-        {/* Error Message Display */}
-        {error && <div className="alert alert-danger">{error}</div>}
-
-        {/* --- VIEW: CREATE TEAM --- */}
-        {mode === "create" ? (
+        {/* CREATE VIEW */}
+        {view === "create" && (
           <div>
-            <div className="mb-3">
-              <label className="form-label">Team Name</label>
-              <input
-                className="form-control"
-                placeholder="e.g. Mobile App Squad"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-              />
-            </div>
-            <button className="btn btn-success w-100" onClick={handleCreate}>
+            <input
+              type="text"
+              className="form-control mb-3"
+              placeholder="Enter Team Name"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+            />
+            <button
+              onClick={handleCreateTeam}
+              className="btn btn-success w-100"
+            >
               Create & Generate Code
             </button>
           </div>
-        ) : (
-          /* --- VIEW: JOIN TEAM --- */
+        )}
+
+        {/* JOIN VIEW */}
+        {view === "join" && (
           <div>
-            <div className="mb-3">
-              <label className="form-label">Enter Invite Code</label>
-              <input
-                className="form-control"
-                placeholder="e.g. X7Y2Z1"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-              />
-            </div>
-            <button className="btn btn-success w-100" onClick={handleJoin}>
+            <input
+              type="text"
+              className="form-control mb-3"
+              placeholder="Enter Join Code (e.g. A7X29)"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value)}
+            />
+            <button
+              onClick={handleJoinTeam}
+              className="btn btn-info w-100 text-white"
+            >
               Join Team
             </button>
           </div>

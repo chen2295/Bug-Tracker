@@ -2,14 +2,15 @@ import { useState, FormEvent } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-// 1. ADD THIS INTERFACE AT THE TOP (Outside the function)
+// 1. UPDATED INTERFACE (Now includes token)
 interface LoginResponse {
   message: string;
+  token: string; // <--- Added this!
   user: {
     id: number;
     username: string;
     email: string;
-    team_id: number | null; // This tells TypeScript team_id can be a number OR null
+    team_id: number | null;
   };
 }
 
@@ -22,7 +23,6 @@ function Login() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      // 2. REPLACE YOUR OLD AXIOS LINE WITH THIS TYPED VERSION
       const res = await axios.post<LoginResponse>(
         "http://localhost:3001/login",
         {
@@ -33,10 +33,13 @@ function Login() {
 
       console.log("Logged in!", res.data.user);
 
-      // Now this line will work perfectly (no red squiggly!)
-      if (res.data.message === "Login Successful") {
+      // 2. FIXED LOGIC: Check if user exists (safer than checking message string)
+      if (res.data.user) {
+        // Save BOTH the user data AND the token
         localStorage.setItem("user", JSON.stringify(res.data.user));
+        localStorage.setItem("token", res.data.token); // <--- CRITICAL FIX
 
+        // Navigate based on team status
         if (res.data.user.team_id === null) {
           navigate("/onboarding");
         } else {
@@ -45,13 +48,13 @@ function Login() {
       }
     } catch (err: any) {
       console.error(err);
-      setError("Invalid email or password");
+      // specific error handling if available, otherwise generic
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(err.response.data.message);
+      } else {
+        setError("Invalid email or password");
+      }
     }
-
-    return (
-      // ... (Your JSX HTML code remains exactly the same)
-      <div className="container">{/* ... form inputs ... */}</div>
-    );
   };
 
   return (
