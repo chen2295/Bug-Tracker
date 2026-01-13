@@ -24,7 +24,7 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
   
-  // --- NEW: TEAM INFO STATE ---
+  // --- TEAM INFO STATE ---
   const [teamInfo, setTeamInfo] = useState({ name: "Loading...", join_code: "..." });
 
   // --- SORT STATE ---
@@ -75,7 +75,7 @@ function Dashboard() {
     axios.get(endpoint).then(res => setStats(res.data)).catch(console.error);
   }, [activeTab, currentUser.id, currentUser.team_id]);
 
-  // 3. NEW: Fetch Team Name & Join Code
+  // 3. Fetch Team Name & Join Code
   useEffect(() => {
       if (currentUser.team_id) {
           axios.get(`http://localhost:3001/bugs/teams/${currentUser.team_id}`)
@@ -171,7 +171,7 @@ function Dashboard() {
             <div className="mb-3 text-secondary small">
                 LOGGED IN AS: <br/> 
                 <strong>{currentUser.username}</strong>
-                {/* NEW: Display Team Name instead of ID */}
+                {/* Team Name Display */}
                 <div className="text-muted mt-1">{teamInfo.name}</div>
             </div>
             <ul className="nav flex-column gap-2">
@@ -238,12 +238,13 @@ function Dashboard() {
                               <Form.Group className="mb-3"><Form.Label className="text-secondary small fw-bold">USERNAME</Form.Label><Form.Control type="text" value={currentUser.username} disabled /></Form.Group>
                               <Form.Group className="mb-3"><Form.Label className="text-secondary small fw-bold">EMAIL ADDRESS</Form.Label><Form.Control type="email" value={currentUser.email || "user@example.com"} disabled /></Form.Group>
                               
-                              {/* NEW: Show Join Code instead of Team ID */}
+                              {/* JOIN CODE SECTION */}
                               <Form.Group className="mb-3">
                                   <Form.Label className="text-secondary small fw-bold">JOIN CODE</Form.Label>
                                   <div className="input-group">
                                     <Form.Control type="text" value={teamInfo.join_code} disabled className="fw-bold text-primary font-monospace" />
-                                    <button className="btn btn-outline-secondary" onClick={() => navigator.clipboard.writeText(teamInfo.join_code)}>
+                                    {/* FIX: Added type="button" to prevent form submission reload */}
+                                    <button type="button" className="btn btn-outline-secondary" onClick={() => navigator.clipboard.writeText(teamInfo.join_code)}>
                                         <i className="bi bi-clipboard"></i>
                                     </button>
                                   </div>
