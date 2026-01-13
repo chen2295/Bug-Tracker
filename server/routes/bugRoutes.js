@@ -137,7 +137,7 @@ router.put('/:id', (req, res) => {
     });
 });
 
-// --- 6. DELETE BUG (NEW!) ---
+// --- 6. DELETE BUG ---
 router.delete('/:id', (req, res) => {
     const bugId = req.params.id;
     const sql = "DELETE FROM bugs WHERE id = ?";
@@ -145,6 +145,26 @@ router.delete('/:id', (req, res) => {
     db.query(sql, [bugId], (err, result) => {
         if (err) return res.status(500).json({ error: "Database error" });
         res.json({ message: "Bug deleted successfully" });
+    });
+});
+
+// --- 7. DELETE USER ACCOUNT (NEW!) ---
+// Note: We use this 'workaround' file to avoid touching server.js
+router.delete('/users/:id', (req, res) => {
+    const userId = req.params.id;
+
+    // Step 1: Unassign bugs from this user (Set assignee_id to NULL)
+    const unassignSql = "UPDATE bugs SET assignee_id = NULL WHERE assignee_id = ?";
+    
+    db.query(unassignSql, [userId], (err) => {
+        if (err) return res.status(500).json({ error: "Failed to unassign bugs" });
+
+        // Step 2: Now it is safe to delete the user
+        const deleteSql = "DELETE FROM users WHERE id = ?";
+        db.query(deleteSql, [userId], (err) => {
+            if (err) return res.status(500).json({ error: "Failed to delete user" });
+            res.json({ message: "User deleted successfully" });
+        });
     });
 });
 

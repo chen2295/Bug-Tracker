@@ -7,6 +7,7 @@ import BugList from "./BugList";
 interface User {
   id: number;
   username: string;
+  email?: string;
 }
 
 interface Bug {
@@ -22,6 +23,21 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
+
+  // --- DARK MODE STATE ---
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("theme") === "dark";
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        localStorage.setItem("theme", "dark");
+    } else {
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+        localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
 
   // --- USER & TEAM SETUP ---
   const storedUser = localStorage.getItem("user");
@@ -42,7 +58,7 @@ function Dashboard() {
   }, [currentUser.team_id]);
 
   useEffect(() => {
-    if (activeTab === 'settings') return; // Don't fetch stats on settings page
+    if (activeTab === 'settings') return;
 
     let endpoint = `http://localhost:3001/bugs/stats?team_id=${currentUser.team_id}`; 
     if (activeTab === 'my_issues') endpoint = `http://localhost:3001/bugs/stats?assignee_id=${currentUser.id}`;
@@ -112,12 +128,26 @@ function Dashboard() {
     navigate("/login");
   };
 
+  const handleDeleteAccount = async () => {
+      const confirmed = window.confirm("Are you sure you want to delete your account? This action cannot be undone.");
+      if (confirmed) {
+          try {
+              await axios.delete(`http://localhost:3001/bugs/users/${currentUser.id}`);
+              alert("Account deleted.");
+              handleLogout(); 
+          } catch (error) {
+              console.error(error);
+              alert("Failed to delete account.");
+          }
+      }
+  };
+
   return (
-    <div className="container-fluid bg-light min-vh-100">
+    <div className="container-fluid bg-body-tertiary min-vh-100">
       <div className="row">
         
         {/* --- SIDEBAR NAV --- */}
-        <nav className="col-md-2 d-none d-md-block bg-white sidebar min-vh-100 border-end">
+        <nav className="col-md-2 d-none d-md-block bg-body sidebar min-vh-100 border-end">
           <div className="p-4">
             <h4 className="fw-bold text-primary mb-5"><i className="bi bi-bug-fill me-2"></i>BugTracker</h4>
             <div className="mb-3 text-secondary small">LOGGED IN AS: <br/> <strong>{currentUser.username}</strong> (Team {currentUser.team_id})</div>
@@ -161,22 +191,23 @@ function Dashboard() {
           {/* --- VIEW: SETTINGS TAB --- */}
           {activeTab === 'settings' ? (
               <div className="row g-4">
-                  {/* Profile Card */}
+                  {/* Profile Card - Uses 'bg-body' to be dark in dark mode */}
                   <div className="col-md-6">
-                      <div className="card border-0 shadow-sm rounded-4 p-4">
+                      <div className="card border-0 shadow-sm rounded-4 p-4 bg-body">
                           <h5 className="fw-bold mb-4">My Profile</h5>
                           <Form>
                               <Form.Group className="mb-3">
                                   <Form.Label className="text-secondary small fw-bold">USERNAME</Form.Label>
-                                  <Form.Control type="text" value={currentUser.username} disabled className="bg-light" />
+                                  {/* Removed bg-light to allow dark mode inheritance */}
+                                  <Form.Control type="text" value={currentUser.username} disabled />
                               </Form.Group>
                               <Form.Group className="mb-3">
                                   <Form.Label className="text-secondary small fw-bold">EMAIL ADDRESS</Form.Label>
-                                  <Form.Control type="email" value={currentUser.email || "user@example.com"} disabled className="bg-light" />
+                                  <Form.Control type="email" value={currentUser.email || "user@example.com"} disabled />
                               </Form.Group>
                               <Form.Group className="mb-3">
                                   <Form.Label className="text-secondary small fw-bold">TEAM ID</Form.Label>
-                                  <Form.Control type="text" value={currentUser.team_id} disabled className="bg-light" />
+                                  <Form.Control type="text" value={currentUser.team_id} disabled />
                               </Form.Group>
                           </Form>
                       </div>
@@ -184,41 +215,47 @@ function Dashboard() {
 
                   {/* Preferences Card */}
                   <div className="col-md-6">
-                      <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                      <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-body">
                           <h5 className="fw-bold mb-4">App Preferences</h5>
                           <div className="d-flex justify-content-between align-items-center mb-4">
                               <div>
                                   <h6 className="mb-0 fw-semibold">Email Notifications</h6>
-                                  <small className="text-muted">Receive emails when bugs are assigned to you.</small>
+                                  <small className="text-secondary">Receive emails when bugs are assigned to you.</small>
                               </div>
                               <Form.Check type="switch" defaultChecked />
                           </div>
                           <div className="d-flex justify-content-between align-items-center">
                               <div>
                                   <h6 className="mb-0 fw-semibold">Dark Mode</h6>
-                                  <small className="text-muted">Switch between light and dark themes.</small>
+                                  <small className="text-secondary">Switch between light and dark themes.</small>
                               </div>
-                              <Form.Check type="switch" disabled label="(Coming Soon)" />
+                              <Form.Check 
+                                type="switch" 
+                                checked={darkMode}
+                                onChange={() => setDarkMode(!darkMode)}
+                              />
                           </div>
                       </div>
 
-                      <div className="card border-0 shadow-sm rounded-4 p-4">
+                      <div className="card border-0 shadow-sm rounded-4 p-4 border-danger-subtle bg-body">
                           <h5 className="fw-bold mb-3 text-danger">Danger Zone</h5>
-                          <p className="text-muted small">Once you delete your account, there is no going back. Please be certain.</p>
-                          <Button variant="outline-danger" size="sm">Delete Account</Button>
+                          <p className="text-secondary small">Once you delete your account, there is no going back. All bugs assigned to you will be unassigned.</p>
+                          <Button variant="outline-danger" size="sm" onClick={handleDeleteAccount}>
+                              Delete Account
+                          </Button>
                       </div>
                   </div>
               </div>
           ) : (
               // --- VIEW: DASHBOARD/LIST ---
               <>
-                {/* Stats Cards (Only show on Dashboard) */}
+                {/* Stats Cards - Updated to use bg-body for Dark Mode support */}
                 {activeTab === 'dashboard' && (
                     <div className="row g-4 mb-5">
-                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">Total Bugs</p><h1 className="fw-bold mb-0">{stats.total}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary" style={{ width: '60px', height: '60px' }}><i className="bi bi-bug fs-2"></i></div></div></div></div>
-                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">Open Critical Issues</p><h1 className="fw-bold mb-0">{stats.critical}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3 bg-danger-subtle text-danger" style={{ width: '60px', height: '60px' }}><i className="bi bi-exclamation-circle fs-2"></i></div></div></div></div>
-                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">Bugs Resolved</p><h1 className="fw-bold mb-0">{stats.resolved}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3 bg-success-subtle text-success" style={{ width: '60px', height: '60px' }}><i className="bi bi-check2-circle fs-2"></i></div></div></div></div>
-                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">In Progress</p><h1 className="fw-bold mb-0">{stats.in_progress}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3" style={{ width: '60px', height: '60px', backgroundColor: '#f3e8ff', color: '#6f42c1' }}><i className="bi bi-clock fs-2"></i></div></div></div></div>
+                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100 bg-body"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">Total Bugs</p><h1 className="fw-bold mb-0">{stats.total}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary" style={{ width: '60px', height: '60px' }}><i className="bi bi-bug fs-2"></i></div></div></div></div>
+                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100 bg-body"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">Open Critical Issues</p><h1 className="fw-bold mb-0">{stats.critical}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3 bg-danger-subtle text-danger" style={{ width: '60px', height: '60px' }}><i className="bi bi-exclamation-circle fs-2"></i></div></div></div></div>
+                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100 bg-body"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">Bugs Resolved</p><h1 className="fw-bold mb-0">{stats.resolved}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3 bg-success-subtle text-success" style={{ width: '60px', height: '60px' }}><i className="bi bi-check2-circle fs-2"></i></div></div></div></div>
+                        <div className="col-md-3"><div className="card border-0 shadow-sm p-4 rounded-4 h-100 bg-body"><div className="d-flex justify-content-between align-items-center"><div><p className="text-secondary mb-2 fw-medium">In Progress</p><h1 className="fw-bold mb-0">{stats.in_progress}</h1></div><div className="d-flex align-items-center justify-content-center rounded-3" style={{ width: '60px', height: '60px', backgroundColor: '#f3e8ff', color: '#6f42c1' }}><i className="bi bi-clock fs-2"></i></div></div></div></div>
                     </div>
                 )}
 
@@ -259,11 +296,11 @@ function Dashboard() {
                     <Form>
                         <Form.Group className="mb-4"><Form.Control type="text" className="fs-4 fw-bold border-0 px-0 shadow-none bg-transparent" value={selectedBug.title} onChange={(e) => setSelectedBug({...selectedBug, title: e.target.value})}/></Form.Group>
                         <div className="d-flex gap-3 mb-4">
-                            <div className="flex-grow-1"><label className="small text-secondary fw-bold mb-1">STATUS</label><Form.Select className="fw-medium bg-light border-0" value={selectedBug.status} onChange={(e) => setSelectedBug({...selectedBug, status: e.target.value})}><option value="Open">Open</option><option value="In Progress">In Progress</option><option value="Resolved">Resolved</option></Form.Select></div>
-                            <div className="flex-grow-1"><label className="small text-secondary fw-bold mb-1">PRIORITY</label><Form.Select className="fw-medium bg-light border-0" value={selectedBug.priority} onChange={(e) => setSelectedBug({...selectedBug, priority: e.target.value})}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></Form.Select></div>
+                            <div className="flex-grow-1"><label className="small text-secondary fw-bold mb-1">STATUS</label><Form.Select className="fw-medium bg-body border-0" value={selectedBug.status} onChange={(e) => setSelectedBug({...selectedBug, status: e.target.value})}><option value="Open">Open</option><option value="In Progress">In Progress</option><option value="Resolved">Resolved</option></Form.Select></div>
+                            <div className="flex-grow-1"><label className="small text-secondary fw-bold mb-1">PRIORITY</label><Form.Select className="fw-medium bg-body border-0" value={selectedBug.priority} onChange={(e) => setSelectedBug({...selectedBug, priority: e.target.value})}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></Form.Select></div>
                         </div>
-                        <Form.Group className="mb-4"><label className="small text-secondary fw-bold mb-1">DESCRIPTION</label><Form.Control as="textarea" rows={6} className="bg-light border-0 p-3" value={selectedBug.description} onChange={(e) => setSelectedBug({...selectedBug, description: e.target.value})}/></Form.Group>
-                        <Form.Group className="mb-5"><label className="small text-secondary fw-bold mb-1">ASSIGNEE</label><Form.Select className="bg-light border-0" value={selectedBug.assignee_id || ""} onChange={(e) => setSelectedBug({...selectedBug, assignee_id: e.target.value})}><option value="">Unassigned</option>{teamMembers.map(m => (<option key={m.id} value={m.id}>{m.username}</option>))}</Form.Select></Form.Group>
+                        <Form.Group className="mb-4"><label className="small text-secondary fw-bold mb-1">DESCRIPTION</label><Form.Control as="textarea" rows={6} className="bg-body border-0 p-3" value={selectedBug.description} onChange={(e) => setSelectedBug({...selectedBug, description: e.target.value})}/></Form.Group>
+                        <Form.Group className="mb-5"><label className="small text-secondary fw-bold mb-1">ASSIGNEE</label><Form.Select className="bg-body border-0" value={selectedBug.assignee_id || ""} onChange={(e) => setSelectedBug({...selectedBug, assignee_id: e.target.value})}><option value="">Unassigned</option>{teamMembers.map(m => (<option key={m.id} value={m.id}>{m.username}</option>))}</Form.Select></Form.Group>
                         <div className="d-flex justify-content-between pt-4 border-top">
                             <Button variant="outline-danger" onClick={handleDeleteBug}><i className="bi bi-trash me-2"></i> Delete</Button>
                             <Button variant="primary px-4" onClick={handleUpdateBug}>Save Changes</Button>
