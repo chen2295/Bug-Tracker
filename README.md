@@ -2,7 +2,7 @@
 
 A full-stack web application designed for software teams to track, manage, and resolve bugs efficiently. Features secure authentication, team management with invite codes, and a real-time dashboard.
 
-**[🚀 View Live Demo on AWS](http://bugtracker-app-env.eba-i6pw3jjf.us-east-2.elasticbeanstalk.com/login))**
+**[🚀 View Live Demo on AWS](http://bugtracker-app-env.eba-i6pw3jjf.us-east-2.elasticbeanstalk.com/login)**
 
 ---
 
