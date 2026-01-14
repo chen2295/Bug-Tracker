@@ -8,7 +8,14 @@ A full-stack web application designed for software teams to track, manage, and r
 
 ## 📸 Screenshots
 
-![Dashboard Screenshot](/Users/chenxin/Desktop/bug_tracker/client/Dashboard.png)
+[Dashboard Screenshot]
+<img width="2880" height="1712" alt="image" src="https://github.com/user-attachments/assets/7a7da61c-4bc1-45ff-aa1e-8d1f14b4fcfc" />
+
+[Edit Bug Side Bar Screenshot]
+<img width="2880" height="1718" alt="image" src="https://github.com/user-attachments/assets/f76ed6f0-f1a0-426b-8aae-a32f59893e4f" />
+
+[Settings (Dark Mode) Screenshot]
+<img width="2880" height="1710" alt="image" src="https://github.com/user-attachments/assets/e0f90de6-46ac-4abd-8987-125d5e2dcfdd" />
 
 
 ---
