@@ -8,7 +8,7 @@ A full-stack web application designed for software teams to track, manage, and r
 
 ## 📸 Screenshots
 
-![Dashboard Screenshot](client/Dashboard.png)
+![Dashboard Screenshot](/Users/chenxin/Desktop/bug_tracker/client/Dashboard.png)
 
 
 ---
