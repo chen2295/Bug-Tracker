@@ -6,9 +6,11 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const db = require('./db');
 const bugRoutes = require('./routes/bugRoutes');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
 
 // Middleware
 app.use(express.json());
@@ -122,7 +124,13 @@ app.post('/teams/join', (req, res) => {
         });
     });
 });
+// 1. Serve static frontend files
+app.use(express.static(path.join(__dirname, 'dist')));
 
+// 2. Catch-all route: Send React app for any unknown path
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

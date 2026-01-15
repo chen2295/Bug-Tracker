@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 interface User {
   id: number;
@@ -18,7 +18,7 @@ interface Bug {
 
 interface BugListProps {
   dataEndpoint: string;
-  teamMembers: User[]; 
+  teamMembers: User[];
   onBugClick: (bug: Bug) => void;
 }
 
@@ -27,156 +27,233 @@ function BugList({ dataEndpoint, teamMembers, onBugClick }: BugListProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    axios.get(`http://localhost:3001${dataEndpoint}`)
-      .then(res => {
+    setLoading(true); // FIX: Changed from http://localhost:3001... to relative path
+    axios
+      .get(dataEndpoint)
+      .then((res) => {
         setBugs(res.data);
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Error fetching bugs:", err);
         setLoading(false);
       });
-  }, [dataEndpoint]); 
+  }, [dataEndpoint]); // --- 1. HANDLE CHANGES ---
 
-  // --- 1. HANDLE CHANGES ---
   const handleUpdate = async (e: any, bugId: number, field: string) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     const value = e.target.value;
-    setBugs(bugs.map(b => b.id === bugId ? { ...b, [field]: value } : b));
+    setBugs(bugs.map((b) => (b.id === bugId ? { ...b, [field]: value } : b)));
 
     try {
-        const payload = field === 'assignee_id' 
-            ? { assignee_id: value === "" ? null : value } 
-            : { [field]: value };
-        await axios.put(`http://localhost:3001/bugs/${bugId}`, payload);
+      const payload =
+        field === "assignee_id"
+          ? { assignee_id: value === "" ? null : value }
+          : { [field]: value }; // FIX: Changed from http://localhost:3001... to relative path
+      await axios.put(`/bugs/${bugId}`, payload);
     } catch (error) {
-        console.error("Failed to update bug");
+      console.error("Failed to update bug");
     }
-  };
+  }; // --- 2. STYLE HELPERS ---
 
-  // --- 2. STYLE HELPERS ---
   const getPriorityClass = (priority: string) => {
-    const base = "form-select form-select-sm border-0 fw-medium px-3 text-center "; 
-    switch (priority) {
-      // Using 'bg-opacity-10' or subtle classes allows better dark mode adapting
-      case 'High': return base + "bg-danger-subtle text-danger-emphasis";
-      case 'Medium': return base + "bg-warning-subtle text-warning-emphasis";
-      case 'Low': return base + "bg-secondary-subtle text-secondary-emphasis";
-      default: return base + "bg-light text-body";
+    const base =
+      "form-select form-select-sm border-0 fw-medium px-3 text-center ";
+    switch (
+      priority // Using 'bg-opacity-10' or subtle classes allows better dark mode adapting
+    ) {
+      case "High":
+        return base + "bg-danger-subtle text-danger-emphasis";
+      case "Medium":
+        return base + "bg-warning-subtle text-warning-emphasis";
+      case "Low":
+        return base + "bg-secondary-subtle text-secondary-emphasis";
+      default:
+        return base + "bg-light text-body";
     }
   };
 
   const getStatusClass = (status: string) => {
-    const base = "form-select form-select-sm border-0 fw-medium px-3 text-center ";
+    const base =
+      "form-select form-select-sm border-0 fw-medium px-3 text-center ";
     switch (status) {
-      case 'Open': return base + "bg-primary-subtle text-primary-emphasis";
-      // Custom purple needs manual handling for dark mode contrast, simplified here:
-      case 'In Progress': return base + "bg-info-subtle text-info-emphasis"; 
-      case 'Resolved': return base + "bg-success-subtle text-success-emphasis";
-      default: return base + "bg-light text-body";
+      case "Open":
+        return base + "bg-primary-subtle text-primary-emphasis"; // Custom purple needs manual handling for dark mode contrast, simplified here:
+      case "In Progress":
+        return base + "bg-info-subtle text-info-emphasis";
+      case "Resolved":
+        return base + "bg-success-subtle text-success-emphasis";
+      default:
+        return base + "bg-light text-body";
     }
   };
 
   return (
     // 'bg-body' ensures the card background adapts to dark mode automatically
     <div className="card border-0 shadow-sm rounded-4 bg-body">
+            
       <div className="card-header bg-body border-0 py-3">
+                
         <h5 className="mb-0 fw-bold">
-            {dataEndpoint.includes('limit') ? 'Recent Activity' : 'Full Issue List'}
+                      
+          {dataEndpoint.includes("limit")
+            ? "Recent Activity"
+            : "Full Issue List"}
+                  
         </h5>
+              
       </div>
+            
       <div className="table-responsive">
+                
         <table className="table table-hover align-middle mb-0">
+                    
           <thead className="border-bottom">
-            <tr className="text-secondary text-uppercase fs-7" style={{ fontSize: '0.85rem' }}>
-              <th className="ps-4">Issue ID</th>
-              <th>Title</th>
-              <th>Priority</th>
-              <th>Status</th>
-              <th>Assigned To</th>
-              <th>Date Created</th>
+                        
+            <tr
+              className="text-secondary text-uppercase fs-7"
+              style={{ fontSize: "0.85rem" }}
+            >
+                            <th className="ps-4">Issue ID</th>
+                            <th>Title</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Assigned To</th>
+                            <th>Date Created</th>
+                          
             </tr>
+                      
           </thead>
+                    
           <tbody>
+                        
             {loading ? (
-                <tr><td colSpan={6} className="text-center py-4">Loading...</td></tr>
+              <tr>
+                <td colSpan={6} className="text-center py-4">
+                  Loading...
+                </td>
+              </tr>
             ) : bugs.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-4 text-muted">No bugs found.</td></tr>
+              <tr>
+                <td colSpan={6} className="text-center py-4 text-muted">
+                  No bugs found.
+                </td>
+              </tr>
             ) : (
-                bugs.map((bug) => (
-                    <tr key={bug.id} style={{ cursor: 'pointer' }}>
-                        
-                        {/* Removed 'text-dark' so these become white in dark mode */}
-                        <td className="ps-4 fw-medium" onClick={() => onBugClick(bug)}>
-                            BUG-{1000 + bug.id}
-                        </td>
-                        <td className="fw-semibold" onClick={() => onBugClick(bug)}>
-                            {bug.title}
-                        </td>
-                        
-                        {/* PRIORITY DROPDOWN */}
-                        <td>
-                            <select 
-                                className={getPriorityClass(bug.priority)}
-                                value={bug.priority}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => handleUpdate(e, bug.id, 'priority')}
-                                style={{ width: '110px', cursor: 'pointer' }}
-                            >
-                                <option value="Low">Low</option>
-                                <option value="Medium">Medium</option>
-                                <option value="High">High</option>
-                            </select>
-                        </td>
-
-                        {/* STATUS DROPDOWN */}
-                        <td>
-                            <select 
-                                className={getStatusClass(bug.status)}
-                                value={bug.status}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => handleUpdate(e, bug.id, 'status')}
-                                style={{ 
-                                    width: '130px', 
-                                    cursor: 'pointer',
-                                    ...(bug.status === 'In Progress' ? { backgroundColor: '#e0cffc', color: '#4c2889' } : {}) 
-                                }}
-                            >
-                                <option value="Open">Open</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Resolved">Resolved</option>
-                            </select>
-                        </td>
-                        
-                        {/* ASSIGNEE DROPDOWN */}
-                        <td>
-                            <select 
-                                // Added 'text-body' so it flips color in dark mode
-                                className="form-select form-select-sm border-0 bg-transparent fw-medium text-body"
-                                value={bug.assignee_id || ""}
-                                onClick={(e) => e.stopPropagation()} 
-                                onChange={(e) => handleUpdate(e, bug.id, 'assignee_id')}
-                                style={{ cursor: 'pointer', maxWidth: '150px' }}
-                            >
-                                <option value="" className="text-muted">Unassigned</option>
-                                {teamMembers.map(user => (
-                                    <option key={user.id} value={user.id}>
-                                        {user.username}
-                                    </option>
-                                ))}
-                            </select>
-                        </td>
-
-                        <td className="text-secondary" onClick={() => onBugClick(bug)}>
-                            {new Date(bug.created_at).toLocaleDateString()}
-                        </td>
-                    </tr>
-                ))
+              bugs.map((bug) => (
+                <tr key={bug.id} style={{ cursor: "pointer" }}>
+                                                                   
+                  {/* Removed 'text-dark' so these become white in dark mode */}
+                                          
+                  <td
+                    className="ps-4 fw-medium"
+                    onClick={() => onBugClick(bug)}
+                  >
+                                                BUG-{1000 + bug.id}
+                                            
+                  </td>
+                                          
+                  <td className="fw-semibold" onClick={() => onBugClick(bug)}>
+                                                {bug.title}
+                                            
+                  </td>
+                                                                   
+                  {/* PRIORITY DROPDOWN */}
+                                          
+                  <td>
+                                                
+                    <select
+                      className={getPriorityClass(bug.priority)}
+                      value={bug.priority}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => handleUpdate(e, bug.id, "priority")}
+                      style={{ width: "110px", cursor: "pointer" }}
+                    >
+                                                      
+                      <option value="Low">Low</option>
+                                                      
+                      <option value="Medium">Medium</option>
+                                                      
+                      <option value="High">High</option>
+                                                  
+                    </select>
+                                            
+                  </td>
+                                          {/* STATUS DROPDOWN */}
+                                          
+                  <td>
+                                                
+                    <select
+                      className={getStatusClass(bug.status)}
+                      value={bug.status}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => handleUpdate(e, bug.id, "status")}
+                      style={{
+                        width: "130px",
+                        cursor: "pointer",
+                        ...(bug.status === "In Progress"
+                          ? { backgroundColor: "#e0cffc", color: "#4c2889" }
+                          : {}),
+                      }}
+                    >
+                                                      
+                      <option value="Open">Open</option>
+                                                      
+                      <option value="In Progress">In Progress</option>
+                                                      
+                      <option value="Resolved">Resolved</option>
+                                                  
+                    </select>
+                                            
+                  </td>
+                                                                   
+                  {/* ASSIGNEE DROPDOWN */}
+                                          
+                  <td>
+                                                
+                    <select // Added 'text-body' so it flips color in dark mode
+                      className="form-select form-select-sm border-0 bg-transparent fw-medium text-body"
+                      value={bug.assignee_id || ""}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => handleUpdate(e, bug.id, "assignee_id")}
+                      style={{ cursor: "pointer", maxWidth: "150px" }}
+                    >
+                                                      
+                      <option value="" className="text-muted">
+                        Unassigned
+                      </option>
+                                                      
+                      {teamMembers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                                                                  
+                          {user.username}
+                                                              
+                        </option>
+                      ))}
+                                                  
+                    </select>
+                                            
+                  </td>
+                                          
+                  <td
+                    className="text-secondary"
+                    onClick={() => onBugClick(bug)}
+                  >
+                                                
+                    {new Date(bug.created_at).toLocaleDateString()}
+                                            
+                  </td>
+                                      
+                </tr>
+              ))
             )}
+                      
           </tbody>
+                  
         </table>
+              
       </div>
+          
     </div>
   );
 }

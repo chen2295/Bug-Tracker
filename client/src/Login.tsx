@@ -23,23 +23,20 @@ function Login() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const res = await axios.post<LoginResponse>(
-        "http://localhost:3001/login",
-        {
-          email,
-          password,
-        }
-      );
+      // FIX: Changed absolute URL to relative URL for AWS deployment
+      // Old: "http://localhost:3001/login" -> New: "/login"
+      const res = await axios.post<LoginResponse>("/login", {
+        email,
+        password,
+      });
 
-      console.log("Logged in!", res.data.user);
+      console.log("Logged in!", res.data.user); // 2. FIXED LOGIC: Check if user exists (safer than checking message string)
 
-      // 2. FIXED LOGIC: Check if user exists (safer than checking message string)
       if (res.data.user) {
         // Save BOTH the user data AND the token
         localStorage.setItem("user", JSON.stringify(res.data.user));
-        localStorage.setItem("token", res.data.token); // <--- CRITICAL FIX
+        localStorage.setItem("token", res.data.token); // <--- CRITICAL FIX // Navigate based on team status
 
-        // Navigate based on team status
         if (res.data.user.team_id === null) {
           navigate("/onboarding");
         } else {
@@ -47,8 +44,7 @@ function Login() {
         }
       }
     } catch (err: any) {
-      console.error(err);
-      // specific error handling if available, otherwise generic
+      console.error(err); // specific error handling if available, otherwise generic
       if (err.response && err.response.data && err.response.data.message) {
         setError(err.response.data.message);
       } else {
@@ -59,14 +55,16 @@ function Login() {
 
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
+            
       <div className="card p-4 shadow-lg" style={{ width: "400px" }}>
-        <h3 className="text-center mb-4">Bug Tracker Login</h3>
-
-        {error && <div className="alert alert-danger">{error}</div>}
-
+                <h3 className="text-center mb-4">Bug Tracker Login</h3>
+                {error && <div className="alert alert-danger">{error}</div>}
+                
         <form onSubmit={handleSubmit}>
+                    
           <div className="mb-3">
-            <label className="form-label">Email</label>
+                        <label className="form-label">Email</label>
+                        
             <input
               type="email"
               className="form-control"
@@ -74,9 +72,12 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
+                      
           </div>
+                    
           <div className="mb-3">
-            <label className="form-label">Password</label>
+                        <label className="form-label">Password</label>
+                        
             <input
               type="password"
               className="form-control"
@@ -84,15 +85,22 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+                      
           </div>
+                    
           <button type="submit" className="btn btn-primary w-100">
-            Login
+                        Login           
           </button>
+                  
         </form>
+                
         <p className="mt-3 text-center">
-          Don't have an account? <a href="/register">Sign Up</a>
+                    Don't have an account? <a href="/register">Sign Up</a>
+                  
         </p>
+              
       </div>
+          
     </div>
   );
 }
